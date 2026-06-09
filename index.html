@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Team Meeting · Köln · Juni 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+:root {
+  --ink: #1a1510;
+  --cream: #faf7f2;
+  --bg: #f0ebe0;
+  --gold: #b8933a;
+  --gold-l: #f5e9cc;
+  --red: #c0392b;
+  --red-l: #fdecea;
+  --blue: #2c4a6e;
+  --blue-l: #e8eef6;
+  --green: #2d6a4f;
+  --green-l: #e8f5ee;
+  --surface: #ffffff;
+  --border: #e4ddd0;
+  --muted: #8a7f6e;
+  --d1: #2c6e49;
+  --d2: #2c4a6e;
+  --d3: #7b2d8b;
+  --nav-h: 58px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+/* Safari iOS fix */
+html {
+  height: 100%;
+}
+body {
+  height: 100%;
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+  /* Safari iOS: position:fixed blocks touch events on children — use height instead */
+  position: relative;
+  width: 100%;
+}
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  height: 100%;
+  /* Safari iOS: ensure full height with safe-area support */
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* HERO */
+.hero { background: var(--ink); padding: 14px 18px 12px; flex-shrink: 0; }
+.hero-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 900; color: var(--cream); line-height: 1; }
+.hero-title span { color: var(--gold); }
+.hero-sub { font-size: 11px; color: #a09070; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+.hero-sub svg { width: 12px; height: 12px; stroke: #a09070; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.hero-badges { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+.hbadge { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; padding: 3px 9px; border-radius: 20px; }
+.hb-gold { background: rgba(184,147,58,0.2); color: var(--gold); }
+.hb-muted { background: rgba(255,255,255,0.07); color: #a09070; }
+.gold-line { height: 3px; background: linear-gradient(90deg, var(--gold), #e8c06a, var(--gold)); flex-shrink: 0; }
+
+/* DAY TABS (agenda only) */
+.day-tabs { background: var(--ink); display: flex; border-bottom: 1px solid #2a2520; flex-shrink: 0; }
+.dtab { flex: 1; padding: 9px 6px; text-align: center; cursor: pointer; border: none; background: transparent;
+  font-family: 'DM Sans', sans-serif; color: #60504a; transition: all 0.15s; border-bottom: 3px solid transparent;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.dtab.active { color: white; border-bottom: 3px solid var(--gold); background: rgba(184,147,58,0.07); }
+.dtab .dn { font-size: 20px; font-weight: 600; line-height: 1; }
+.dtab .dd { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+
+/* PANELS */
+.panel { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+.panel.active { display: flex; }
+
+/* SCROLLABLE AREA */
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 14px 12px; }
+
+/* MAP PANEL */
+.map-filters { background: var(--ink); padding: 0 14px 9px; display: flex; gap: 7px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-shrink: 0; }
+.map-filters::-webkit-scrollbar { display: none; }
+.mchip { border: 1.5px solid rgba(255,255,255,0.14); background: transparent; border-radius: 20px;
+  padding: 5px 11px; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+  color: #a09070; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 5px;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.mchip.active { border-color: var(--gold); color: var(--cream); background: rgba(184,147,58,0.14); }
+.mchip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.map-wrap { flex: 1; position: relative; min-height: 0; overflow: hidden; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.map-list { background: var(--surface); border-top: 1px solid var(--border);
+  height: 36vh; overflow-y: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0; }
+.mli { display: flex; align-items: center; gap: 11px; padding: 10px 16px;
+  cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.mli:last-child { border-bottom: none; }
+.mli.hi { background: var(--gold-l); }
+.mli-dot { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 16px; flex-shrink: 0; border: 2px solid rgba(0,0,0,0.06); }
+.mli-body { flex: 1; min-width: 0; }
+.mli-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mli-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.mli-tag { display: inline-block; font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; margin-top: 3px; }
+.mli-chev svg { width: 14px; height: 14px; stroke: var(--border); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* AGENDA CARDS */
+.sec { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px; }
+.sec:first-child { margin-top: 2px; }
+.acard { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 13px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 11px;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.acard.d1 { border-left: 3px solid var(--d1); }
+.acard.d2 { border-left: 3px solid var(--d2); }
+.acard.d3 { border-left: 3px solid var(--d3); }
+.ac-dot { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; flex-shrink: 0; }
+.ac-body { flex: 1; min-width: 0; }
+.ac-name { font-size: 14px; font-weight: 600; line-height: 1.2; }
+.ac-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.ac-addr { font-size: 11.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-stars { font-size: 11px; color: var(--gold); margin-top: 3px; }
+.ac-tag { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 20px; margin-top: 5px; }
+.ac-chev { flex-shrink: 0; margin-top: 8px; }
+.ac-chev svg { width: 15px; height: 15px; stroke: var(--border); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* INFO */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 12px; text-align: center; }
+.stat-n { font-size: 26px; font-weight: 600; color: var(--gold); line-height: 1; }
+.stat-l { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 8px; }
+.ic-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.ir { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.ir:last-child { border-bottom: none; padding-bottom: 0; }
+.ir svg { width: 15px; height: 15px; stroke: var(--muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.ir-label { flex: 1; }
+.ir-val { font-size: 11.5px; color: var(--muted); }
+.ir-gold { font-size: 11.5px; color: var(--gold); font-weight: 500; }
+a.ir-link { color: var(--gold); text-decoration: none; font-size: 12px; }
+
+/* BOTTOM NAV — fixed with safe area */
+.bnav {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding-top: 7px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 50;
+}
+.bn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border: none; background: transparent; cursor: pointer; padding: 4px;
+  color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 10px;
+  letter-spacing: 0.04em; transition: color 0.15s; -webkit-appearance: none;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.bn.active { color: var(--gold); }
+.bn svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* SHEET OVERLAY */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.48);
+  z-index: 200; align-items: flex-end; justify-content: center;
+  /* Safari iOS: needs cursor:pointer and touch-action for click events on divs */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; }
+.overlay.open { display: flex; }
+.sheet {
+  background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  width: 100%; max-width: 430px;
+  padding: 0 20px;
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
+  max-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  cursor: default; /* prevent overlay close from firing inside sheet */
+}
+.sh-handle { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 14px auto 16px; }
+.sh-icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 10px; }
+.sh-name { font-size: 19px; font-weight: 700; line-height: 1.2; }
+.sh-tag { margin: 7px 0 14px; }
+.sh-row { display: flex; align-items: flex-start; gap: 11px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.sh-row:last-of-type { border-bottom: none; }
+.sh-row svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; margin-top: 1px; }
+.sh-row-txt { flex: 1; line-height: 1.4; }
+.maps-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  margin-top: 16px; padding: 14px; background: var(--ink); color: var(--cream); border: none;
+  border-radius: 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; text-decoration: none; -webkit-appearance: none; }
+.maps-btn svg { width: 17px; height: 17px; stroke: var(--gold); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.call-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  margin-top: 8px; padding: 12px; background: transparent; color: var(--ink);
+  border: 1.5px solid var(--border); border-radius: 14px; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; -webkit-appearance: none; }
+.call-btn svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="hero">
+    <div class="hero-title">Team Meeting <span>Köln</span></div>
+    <div class="hero-sub">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      NH Hotel Köln Altstadt · 14–16 Juni 2026
+    </div>
+    <div class="hero-badges">
+      <span class="hbadge hb-gold">3 DÍAS</span>
+      <span class="hbadge hb-muted">3 RESTAURANTES</span>
+      <span class="hbadge hb-muted">2 ACTIVIDADES</span>
+    </div>
+  </div>
+  <div class="gold-line"></div>
+
+  <!-- MAP PANEL -->
+  <div class="panel active" id="panel-map">
+    <div class="map-filters" id="mapFilters">
+      <button class="mchip active" onclick="filterMap('all',this)">Todos</button>
+      <button class="mchip" onclick="filterMap('hotel',this)"><span class="mchip-dot" style="background:#2c4a6e"></span>Hotel</button>
+      <button class="mchip" onclick="filterMap('cafe',this)"><span class="mchip-dot" style="background:#7b5c2a"></span>Café</button>
+      <button class="mchip" onclick="filterMap('act',this)"><span class="mchip-dot" style="background:#b8933a"></span>Actividades</button>
+      <button class="mchip" onclick="filterMap('rest',this)"><span class="mchip-dot" style="background:#c0392b"></span>Restaurantes</button>
+    </div>
+    <div class="map-wrap"><div id="map"></div></div>
+    <div class="map-list" id="mapList"></div>
+  </div>
+
+  <!-- AGENDA PANEL -->
+  <div class="panel" id="panel-agenda">
+    <div class="day-tabs">
+      <button class="dtab active" onclick="switchAgendaDay(0,this)"><div class="dn">14</div><div class="dd">Dom</div></button>
+      <button class="dtab" onclick="switchAgendaDay(1,this)"><div class="dn">15</div><div class="dd">Lun</div></button>
+      <button class="dtab" onclick="switchAgendaDay(2,this)"><div class="dn">16</div><div class="dd">Mar</div></button>
+    </div>
+    <div class="scroll" id="agendaScroll"></div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="panel" id="panel-info">
+    <div class="scroll">
+      <div class="sec">Resumen</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-n">3</div><div class="stat-l">Días</div></div>
+        <div class="stat-box"><div class="stat-n">3</div><div class="stat-l">Restaurantes</div></div>
+        <div class="stat-box"><div class="stat-n">2</div><div class="stat-l">Actividades</div></div>
+        <div class="stat-box"><div class="stat-n">8</div><div class="stat-l">Paradas totales</div></div>
+      </div>
+
+      <div class="sec">Hotel base</div>
+      <div class="info-card">
+        <div class="ic-title">NH Hotel Köln Altstadt</div>
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg><span class="ir-label">Holzmarkt 47, 50676 Köln</span><span class="ir-gold">⭐ 4.3</span></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><a href="tel:+4922127228800" class="ir-link">+49 221 2722880</a><span class="ir-val">24 h</span></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="ir-label">Check-in Dom 14 jun</span><span class="ir-val">14:00 h</span></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="ir-label">Check-out Mar 16 jun</span><span class="ir-val">~12:00 h</span></div>
+      </div>
+
+      <div class="sec">Restaurantes reservados</div>
+      <div class="info-card">
+        <div class="ir"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="ir-label">il Tartufo · Dom cena</span><span class="ir-gold">⭐ 4.8</span></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="ir-label">L'Osteria Zollhafen · Lun almuerzo</span><span class="ir-gold">⭐ 4.3</span></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="ir-label">Haxenhaus · Lun cena</span><span class="ir-gold">⭐ 4.1</span></div>
+      </div>
+
+      <div class="sec">Teléfonos de contacto</div>
+      <div class="info-card">
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><span class="ir-label">il Tartufo</span><a href="tel:+4922199557835" class="ir-link">+49 221 99557835</a></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><span class="ir-label">L'Osteria</span><a href="tel:+4922166964750" class="ir-link">+49 221 66964750</a></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><span class="ir-label">Haxenhaus</span><a href="tel:+4922127049900" class="ir-link">+49 221 2704990</a></div>
+        <div class="ir"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><span class="ir-label">Panoramafahrt</span><a href="tel:+49221121600" class="ir-link">+49 221 121600</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV (part of flex flow, not fixed) -->
+  <div class="bnav">
+    <button class="bn active" id="bn-map" onclick="switchTab('map')">
+      <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Mapa
+    </button>
+    <button class="bn" id="bn-agenda" onclick="switchTab('agenda')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda
+    </button>
+    <button class="bn" id="bn-info" onclick="switchTab('info')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Info
+    </button>
+  </div>
+</div>
+
+<!-- SHEET -->
+<div class="overlay" id="overlay">
+  <div class="sheet"><div class="sh-handle"></div><div id="sheetBody"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const PLACES = [
+  { id:'hotel', cat:'hotel', emoji:'🏨', color:'#2c4a6e', bg:'#e8eef6',
+    name:'NH Hotel Köln Altstadt', tag:'Hotel base', tagStyle:'background:#e8eef6;color:#2c4a6e;',
+    time:'14:00 h · Check-in (Dom–Mar)', addr:'Holzmarkt 47, 50676 Köln',
+    stars:'⭐ 4.3 · 2.757 reseñas', phone:'+49 221 2722880',
+    maps:'https://maps.google.com/?q=NH+Hotel+Koeln+Altstadt+Holzmarkt+47',
+    lat:50.930726, lng:6.962362 },
+  { id:'reichard', cat:'cafe', emoji:'☕', color:'#7b5c2a', bg:'#f5e8d0',
+    name:'Café Reichard', tag:'Dom · Café', tagStyle:'background:#f5e8d0;color:#7b5c2a;',
+    time:'14:30 – 16:15 h · Dom 14 jun', addr:'Unter Fettenhennen 11, 50667 Köln',
+    stars:'⭐ 3.8 · 5.246 reseñas', phone:'+49 221 2578542',
+    maps:'https://maps.google.com/?q=Café+Reichard+Unter+Fettenhennen+Köln',
+    lat:50.941169, lng:6.955775 },
+  { id:'panorama', cat:'act', emoji:'🚢', color:'#1a6b8a', bg:'#dff0f7',
+    name:'Panoramafahrt · Cologne Tourist', tag:'Dom · Actividad', tagStyle:'background:#dff0f7;color:#1a6b8a;',
+    time:'16:45 – 18:15 h · Dom 14 jun', addr:'Konrad-Adenauer-Ufer, 50668 Köln',
+    stars:'⭐ 4.5 · 737 reseñas', phone:'+49 221 121600',
+    maps:'https://maps.google.com/?q=Cologne+Tourist+Personenschiffahrt+am+Dom',
+    lat:50.942781, lng:6.963069 },
+  { id:'tartufo', cat:'rest', emoji:'🍝', color:'#c0392b', bg:'#fdecea',
+    name:'Ristorante il Tartufo', tag:'Dom · Cena · Reservado', tagStyle:'background:#fdecea;color:#c0392b;',
+    time:'Cena · Dom 14 jun · ~20:00 h', addr:'Mathiasstraße 18, 50676 Köln',
+    stars:'⭐ 4.8 · 2.573 reseñas', phone:'+49 221 99557835',
+    maps:'https://maps.google.com/?q=Ristorante+il+Tartufo+Mathiasstrasse+18+Koeln',
+    lat:50.933117, lng:6.959453 },
+  { id:'osteria', cat:'rest', emoji:'🍕', color:'#c0392b', bg:'#fdecea',
+    name:"L'Osteria Köln Zollhafen", tag:'Lun · Almuerzo · Reservado', tagStyle:'background:#fdecea;color:#c0392b;',
+    time:'13:00 – 15:00 h · Lun 15 jun', addr:'Am Zollhafen 2-4, 50678 Köln',
+    stars:'⭐ 4.3 · 3.413 reseñas', phone:'+49 221 66964750',
+    maps:'https://maps.google.com/?q=LOsteria+Koeln+Zollhafen+Am+Zollhafen',
+    lat:50.931252, lng:6.964105 },
+  { id:'citytour', cat:'act', emoji:'🚌', color:'#1a6b8a', bg:'#dff0f7',
+    name:'Köln City Tour · Erlebnis Domstadt', tag:'Lun · Actividad', tagStyle:'background:#dff0f7;color:#1a6b8a;',
+    time:'17:00 h · Lun 15 jun', addr:'Am Rheinufer · Altstadt, Köln',
+    stars:'⭐ 4.9 · Liebe Deine Stadt', phone:'+49 221 80023514',
+    maps:'https://maps.google.com/?q=Cologne+city+tour+Rhine+Altstadt',
+    lat:50.937898, lng:6.960475 },
+  { id:'haxenhaus', cat:'rest', emoji:'🍺', color:'#c0392b', bg:'#fdecea',
+    name:'Haxenhaus', tag:'Lun · Cena · Reservado', tagStyle:'background:#fdecea;color:#c0392b;',
+    time:'Cena · Lun 15 jun · ~19:30 h', addr:'Frankenwerft 19, 50667 Köln',
+    stars:'⭐ 4.1 · 4.435 reseñas', phone:'+49 221 2704990',
+    maps:'https://maps.google.com/?q=Haxenhaus+Frankenwerft+19+Koeln',
+    lat:50.937608, lng:6.962450 },
+];
+
+const AGENDA = [
+  [
+    { name:'NH Hotel Köln Altstadt', time:'14:00 h · Check-in', addr:'Holzmarkt 47', tag:'Hotel base', tagStyle:'background:#e8eef6;color:#2c4a6e;', emoji:'🏨', bg:'#e8eef6', stars:'⭐ 4.3', placeId:'hotel', section:'Llegada' },
+    { name:'Café Reichard', time:'14:30 – 16:15 h', addr:'Unter Fettenhennen 11', tag:'Café', tagStyle:'background:#f5e8d0;color:#7b5c2a;', emoji:'☕', bg:'#f5e8d0', stars:'⭐ 3.8', placeId:'reichard', section:'Café' },
+    { name:'Panoramafahrt Köln', time:'16:45 – 18:15 h · 90 min', addr:'Konrad-Adenauer-Ufer (am Dom)', tag:'Actividad', tagStyle:'background:#dff0f7;color:#1a6b8a;', emoji:'🚢', bg:'#dff0f7', stars:'⭐ 4.5', placeId:'panorama', section:'Actividad' },
+    { name:'Ristorante il Tartufo', time:'Cena · ~20:00 h', addr:'Mathiasstraße 18', tag:'Reservado', tagStyle:'background:#fdecea;color:#c0392b;', emoji:'🍝', bg:'#fdecea', stars:'⭐ 4.8', placeId:'tartufo', section:'Cena' },
+  ],
+  [
+    { name:'Desayuno & Reunión', time:'08:00 – 12:00 h', addr:'Hotel · Sala de reuniones', tag:'Meeting', tagStyle:'background:#e8eef6;color:#2c4a6e;', emoji:'💼', bg:'#e8eef6', stars:'', placeId:'hotel', section:'Mañana · Work', items:['08:00 Frühstück im Hotel','08:30 Begrüßung & Agenda','09:00 Ziele & Erwartungen','10:30 Pause','11:00 Teamarbeit & Projekte'] },
+    { name:"L'Osteria Köln Zollhafen", time:'13:00 – 15:00 h', addr:'Am Zollhafen 2-4', tag:'Almuerzo · Reservado', tagStyle:'background:#fdecea;color:#c0392b;', emoji:'🍕', bg:'#fdecea', stars:'⭐ 4.3', placeId:'osteria', section:'Almuerzo' },
+    { name:'Sesión de tarde', time:'15:00 – 17:00 h', addr:'Hotel · Sala de reuniones', tag:'Meeting', tagStyle:'background:#e8eef6;color:#2c4a6e;', emoji:'💡', bg:'#e8eef6', stars:'', placeId:'hotel', section:'Tarde · Work', items:['15:00 Estrategia & Roadmap','16:00 Retrospectiva & KPIs'] },
+    { name:'Köln City Tour', time:'17:00 h', addr:'Salida desde el Rheinufer', tag:'Actividad', tagStyle:'background:#dff0f7;color:#1a6b8a;', emoji:'🚌', bg:'#dff0f7', stars:'⭐ 4.9', placeId:'citytour', section:'Actividad' },
+    { name:'Haxenhaus', time:'Cena · ~19:30 h', addr:'Frankenwerft 19', tag:'Cena · Reservado', tagStyle:'background:#fdecea;color:#c0392b;', emoji:'🍺', bg:'#fdecea', stars:'⭐ 4.1', placeId:'haxenhaus', section:'Cena' },
+  ],
+  [
+    { name:'Desayuno', time:'08:00 – 09:00 h', addr:'Hotel · Restaurante', tag:'Desayuno', tagStyle:'background:#e8eef6;color:#2c4a6e;', emoji:'🥐', bg:'#e8eef6', stars:'', placeId:'hotel', section:'Mañana' },
+    { name:'1:1 Gespräche', time:'09:00 – 12:00 h', addr:'Hotel · Sala de reuniones', tag:'Entrevistas', tagStyle:'background:#f5eafa;color:#7b2d8b;', emoji:'🤝', bg:'#f5eafa', stars:'', placeId:'hotel', section:'Entrevistas individuales', items:['30–45 min por persona','Feedback personal & objetivos','Desarrollo individual'] },
+    { name:'Almuerzo de cierre', time:'12:00 – 13:30 h · flexible', addr:'Lugar por decidir', tag:'Despedida', tagStyle:'background:#fdecea;color:#c0392b;', emoji:'🥂', bg:'#fdecea', stars:'', placeId:null, section:'Cierre' },
+  ],
+];
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+let map, markerMap = {};
+
+function mkIcon(p, size=36) {
+  return L.divIcon({ className:'',
+    html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${p.color};color:white;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.42)}px;border:2.5px solid white;box-shadow:0 2px 10px rgba(0,0,0,.3);">${p.emoji}</div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2] });
+}
+
+function initMap() {
+  map = L.map('map', { zoomControl:false, attributionControl:false }).setView([50.935,6.958], 15);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(map);
+  PLACES.forEach(p => {
+    const m = L.marker([p.lat, p.lng], { icon: mkIcon(p) }).addTo(map);
+    m.on('click', () => { highlightListItem(p.id); openSheet(p.id); });
+    markerMap[p.id] = m;
+  });
+  renderMapList('all');
+  // Multiple invalidateSize calls — Safari needs this
+  setTimeout(() => map.invalidateSize(), 100);
+  setTimeout(() => map.invalidateSize(), 400);
+  setTimeout(() => map.invalidateSize(), 800);
+}
+
+function filterMap(cat, btn) {
+  document.querySelectorAll('.mchip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  PLACES.forEach(p => {
+    cat==='all' || p.cat===cat ? map.addLayer(markerMap[p.id]) : map.removeLayer(markerMap[p.id]);
+  });
+  renderMapList(cat);
+}
+
+function renderMapList(cat) {
+  const items = cat==='all' ? PLACES : PLACES.filter(p => p.cat===cat);
+  document.getElementById('mapList').innerHTML = items.map(p => `
+    <div class="mli" id="mli-${p.id}" onclick="focusPlace('${p.id}')">
+      <div class="mli-dot" style="background:${p.bg}">${p.emoji}</div>
+      <div class="mli-body">
+        <div class="mli-name">${p.name}</div>
+        <div class="mli-meta">${p.time}</div>
+        <span class="mli-tag" style="${p.tagStyle}">${p.tag}</span>
+      </div>
+      <div class="mli-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>`).join('');
+}
+
+function focusPlace(id) {
+  const p = PLACES.find(x => x.id===id);
+  if (!p) return;
+  map.flyTo([p.lat, p.lng], 17, { duration:0.6 });
+  highlightListItem(id);
+  openSheet(id);
+}
+
+function highlightListItem(id) {
+  document.querySelectorAll('.mli').forEach(e => e.classList.remove('hi'));
+  const el = document.getElementById('mli-'+id);
+  if (el) { el.classList.add('hi'); el.scrollIntoView({ block:'nearest', behavior:'smooth' }); }
+}
+
+// ── SHEET ─────────────────────────────────────────────────────────────────────
+function openSheet(id) {
+  const p = PLACES.find(x => x.id===id);
+  if (!p) return;
+  let html = `<div class="sh-icon" style="background:${p.bg}">${p.emoji}</div>
+    <div class="sh-name">${p.name}</div>
+    <div class="sh-tag"><span class="mli-tag" style="${p.tagStyle}">${p.tag}</span></div>
+    <div class="sh-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="sh-row-txt">${p.time}</span></div>
+    <div class="sh-row"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg><span class="sh-row-txt">${p.addr}</span></div>`;
+  if (p.stars) html += `<div class="sh-row"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="sh-row-txt" style="color:var(--gold)">${p.stars}</span></div>`;
+  if (p.phone) html += `<div class="sh-row"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg><span class="sh-row-txt">${p.phone}</span></div>`;
+  html += `<a class="maps-btn" href="${p.maps}" target="_blank"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Abrir en Maps</a>`;
+  if (p.phone) html += `<a class="call-btn" href="tel:${p.phone.replace(/\s/g,'')}"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>Llamar</a>`;
+  document.getElementById('sheetBody').innerHTML = html;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeSheet(e) {
+  if (e.target === document.getElementById('overlay'))
+    document.getElementById('overlay').classList.remove('open');
+}
+
+// ── AGENDA ────────────────────────────────────────────────────────────────────
+function renderAgendaDay(idx) {
+  const events = AGENDA[idx];
+  const dayClass = 'd'+(idx+1);
+  let html = '', lastSection = '';
+  events.forEach(ev => {
+    if (ev.section !== lastSection) {
+      html += `<div class="sec">${ev.section}</div>`;
+      lastSection = ev.section;
+    }
+    const onclick = ev.placeId ? `onclick="openSheet('${ev.placeId}')"` : '';
+    html += `<div class="acard ${dayClass}" ${onclick}>
+      <div class="ac-dot" style="background:${ev.bg}">${ev.emoji}</div>
+      <div class="ac-body">
+        <div class="ac-name">${ev.name}</div>
+        <div class="ac-time">${ev.time}</div>
+        <div class="ac-addr">${ev.addr}</div>
+        ${ev.stars ? `<div class="ac-stars">${ev.stars}</div>` : ''}
+        ${ev.items ? `<div style="margin-top:7px;display:flex;flex-direction:column;gap:3px;">${ev.items.map(i=>`<div style="font-size:11px;color:var(--muted);display:flex;gap:5px;"><span style="color:var(--gold)">·</span>${i}</div>`).join('')}</div>` : ''}
+        <span class="ac-tag" style="${ev.tagStyle}">${ev.tag}</span>
+      </div>
+      ${ev.placeId ? `<div class="ac-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>` : ''}
+    </div>`;
+  });
+  document.getElementById('agendaScroll').innerHTML = html;
+  document.getElementById('agendaScroll').scrollTop = 0;
+}
+
+function switchAgendaDay(idx, btn) {
+  document.querySelectorAll('.dtab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderAgendaDay(idx);
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+const TABS = ['map','agenda','info'];
+function switchTab(tab) {
+  TABS.forEach(t => {
+    document.getElementById('panel-'+t).classList.toggle('active', t===tab);
+    document.getElementById('bn-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab === 'map') {
+    // Safari needs multiple invalidateSize calls after layout settles
+    [50, 200, 400, 800].forEach(delay => {
+      setTimeout(() => map && map.invalidateSize(true), delay);
+    });
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  renderAgendaDay(0);
+  // Delay map init: Safari needs layout to settle before Leaflet can measure the container
+  setTimeout(() => {
+    initMap();
+    // Extra invalidateSize burst for Safari after init
+    [100, 300, 600, 1000].forEach(d => setTimeout(() => map && map.invalidateSize(true), d));
+  }, 200);
+
+  // Overlay close via addEventListener (more reliable than onclick on div in Safari iOS)
+  const overlay = document.getElementById('overlay');
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+  overlay.addEventListener('touchend', function(e) {
+    if (e.target === overlay) {
+      e.preventDefault();
+      overlay.classList.remove('open');
+    }
+  }, { passive: false });
+
+  // Safari iOS: dummy touchstart on interactive elements removes 300ms tap delay
+  document.querySelectorAll('.mchip, .dtab, .bn, .acard, .mli').forEach(el => {
+    el.addEventListener('touchstart', function() {}, { passive: true });
+  });
+});
+
+// Safari: re-check size on orientation change
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => map && map.invalidateSize(), 300);
+});
+window.addEventListener('resize', () => {
+  setTimeout(() => map && map.invalidateSize(), 200);
+});
+</script>
+</body>
+</html>
