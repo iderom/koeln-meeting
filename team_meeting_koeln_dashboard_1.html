@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Team Meeting · Köln · Juni 2026</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --bg: #f5f5f7;
+  --card: #fff;
+  --text: #1a1a2e;
+  --text2: #888;
+  --border: #e8e8ee;
+  --accent: #e94560;
+  --gold: #e07b39;
+  --radius: 14px;
+  --c-hotel:      #4a7fc1;
+  --c-cafe:       #7a5c8a;
+  --c-activity:   #c0842a;
+  --c-restaurant: #c0392b;
+  --c-meeting:    #2e7d5a;
+  --header-h: 108px;
+  --nav-h: 60px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;
+  max-width:480px;margin:0 auto;position:relative;
+}
+
+/* ── HEADER ── */
+.header{
+  background:#1a1a2e;padding:14px 16px 12px;
+  position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;z-index:400;
+}
+.header-loc{display:flex;align-items:center;gap:4px;font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;}
+.header-loc::before{content:'📍';font-size:10px;}
+.header h1{font-size:22px;font-weight:800;color:white;letter-spacing:-0.3px;line-height:1.1;}
+.header h1 span{color:#4a7fc1;}
+.header-badges{display:flex;gap:6px;margin-top:8px;}
+.badge{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.8);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── NAV ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;height:var(--nav-h);
+  background:#fff;border-top:1px solid var(--border);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:400;
+}
+.nav-btn{flex:1;background:none;border:none;color:#aaa;font-size:10px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;}
+.nav-btn .ni{font-size:22px;line-height:1;}
+.nav-btn.active{color:var(--accent);}
+
+/* ── PANELS ── */
+.panel{
+  display:none;position:fixed;
+  top:var(--header-h);bottom:var(--nav-h);
+  left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.panel.active{display:flex;flex-direction:column;}
+
+/* ══ MAP PANEL ══ */
+#panel-map{background:var(--bg);}
+
+.filter-bar{
+  display:flex;gap:6px;padding:9px 12px;
+  overflow-x:auto;background:#1a1a2e;
+  flex-shrink:0;scrollbar-width:none;
+  position:sticky;top:0;z-index:10;
+}
+.filter-bar::-webkit-scrollbar{display:none;}
+.fchip{
+  display:flex;align-items:center;gap:5px;
+  padding:6px 13px;border-radius:20px;
+  border:1.5px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.08);
+  color:rgba(255,255,255,0.7);
+  font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:all .15s;
+}
+.fchip .dot{width:8px;height:8px;border-radius:50%;}
+.fchip.active{background:#fff;color:var(--text);border-color:#fff;}
+
+#map{width:100%;height:260px;flex-shrink:0;z-index:1;}
+
+/* location list */
+.loc-list{flex:1;background:var(--card);}
+.loc-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:#fff;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s;
+}
+.loc-item:active{background:#f5f5f7;}
+.loc-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:#fff;}
+.loc-icon.hotel     {background:var(--c-hotel);}
+.loc-icon.cafe      {background:var(--c-cafe);}
+.loc-icon.activity  {background:var(--c-activity);}
+.loc-icon.restaurant{background:var(--c-restaurant);}
+.loc-icon.meeting   {background:var(--c-meeting);}
+.loc-info{flex:1;min-width:0;}
+.loc-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.loc-time{font-size:12px;color:var(--text2);margin-bottom:5px;}
+.loc-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.ltag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;}
+.ltag.hotel     {background:#dde8f7;color:var(--c-hotel);}
+.ltag.cafe      {background:#ede5f5;color:var(--c-cafe);}
+.ltag.activity  {background:#faebd7;color:var(--c-activity);}
+.ltag.restaurant{background:#fde8e8;color:var(--c-restaurant);}
+.ltag.meeting   {background:#d7f0e5;color:var(--c-meeting);}
+.ltag.day       {background:#f0f0f5;color:#555;}
+.ltag.reserved  {background:#ffe5d0;color:#b05000;}
+.loc-arrow{color:#ccc;font-size:18px;flex-shrink:0;}
+
+/* ── DETAIL CARD (inline, below map) ── */
+#detail-card{
+  display:none;background:#fff;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.dc-map{width:100%;height:200px;flex-shrink:0;}
+.dc-body{padding:16px;}
+.dc-icon-wrap{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:#fff;margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.dc-name{font-size:20px;font-weight:800;margin-bottom:6px;}
+.dc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;}
+.dc-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 0;border-bottom:1px solid var(--border);
+  font-size:14px;
+}
+.dc-row:last-of-type{border-bottom:none;}
+.dc-row-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.dc-row-text{flex:1;color:var(--text);}
+.dc-row-sub{font-size:12px;color:var(--text2);}
+.dc-rating{color:var(--gold);font-weight:700;}
+.dc-btns{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.dc-btn-maps{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:#1a1a2e;color:#fff;padding:14px;
+  border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;
+}
+.dc-btn-call{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:#f5f5f7;color:var(--text);padding:13px;
+  border-radius:12px;text-decoration:none;font-weight:600;font-size:15px;
+  border:1px solid var(--border);
+}
+.dc-close{
+  position:absolute;top:12px;right:12px;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(0,0,0,.35);border:none;
+  color:#fff;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  z-index:10;
+}
+
+/* ══ AGENDA PANEL ══ */
+#panel-agenda{background:var(--bg);}
+.day-tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;}
+.day-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:12px 4px;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;}
+.day-tab .dn{display:block;font-size:20px;font-weight:800;color:var(--text);line-height:1;margin-bottom:1px;}
+.day-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.day-tab.active .dn{color:var(--accent);}
+.agenda-day{display:none;padding:12px;}
+.agenda-day.active{display:block;}
+.day-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:4px 0 10px;}
+.day-label strong{color:var(--text);font-size:13px;}
+.ac{background:#fff;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;border-left:3px solid transparent;transition:transform .15s;}
+.ac:active{transform:scale(.98);}
+.ac.hotel     {border-left-color:var(--c-hotel);}
+.ac.cafe      {border-left-color:var(--c-cafe);}
+.ac.activity  {border-left-color:var(--c-activity);}
+.ac.restaurant{border-left-color:var(--c-restaurant);}
+.ac.meeting   {border-left-color:var(--c-meeting);}
+.ac-top{display:flex;align-items:flex-start;gap:10px;}
+.ac-emoji{font-size:24px;line-height:1;flex-shrink:0;margin-top:1px;}
+.ac-b{flex:1;min-width:0;}
+.ac-time{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:2px;}
+.ac-title{font-size:15px;font-weight:700;}
+.ac-loc{font-size:12px;color:var(--text2);margin-top:4px;}
+.ac-loc::before{content:'📍 ';font-size:11px;}
+.ac-desc{font-size:12px;color:var(--text2);margin-top:5px;line-height:1.5;}
+.ac-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+.pill{font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(233,69,96,.08);color:var(--accent);border:1px solid rgba(233,69,96,.15);}
+
+/* ══ INFO PANEL ══ */
+#panel-info{background:var(--bg);padding:14px;}
+.is-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;}
+.is-title:first-child{margin-top:0;}
+.icard{background:#fff;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.icard-title{font-size:15px;font-weight:700;margin-bottom:3px;}
+.icard-sub{font-size:12px;color:var(--text2);}
+.co-row{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.co-b{font-size:12px;}
+.co-b strong{display:block;font-size:14px;font-weight:700;color:var(--c-hotel);}
+.rrow{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);}
+.rrow:first-child{border-radius:var(--radius) var(--radius) 0 0;}
+.rrow:last-child{border-bottom:none;border-radius:0 0 var(--radius) var(--radius);}
+.rname{font-size:13px;font-weight:700;}
+.rwhen{font-size:11px;color:var(--text2);}
+.rrating{font-size:12px;color:var(--gold);font-weight:700;}
+.crow{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#fff;border-bottom:1px solid var(--border);}
+.crow:first-child{border-radius:var(--radius) var(--radius) 0 0;}
+.crow:last-child{border-bottom:none;border-radius:0 0 var(--radius) var(--radius);}
+.cname{font-size:13px;font-weight:600;}
+.cphone{font-size:12px;color:var(--c-hotel);font-weight:600;text-decoration:none;}
+.topics-box{background:#fff;border-radius:var(--radius);padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.tw{display:flex;flex-wrap:wrap;gap:5px;}
+.tc{background:#f0f0f8;color:#444;font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;}
+
+/* Leaflet pin overrides */
+.leaflet-container{font-family:inherit;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-loc">NH Hotel Köln Altstadt · 14–16 Juni 2026</div>
+  <h1>Team Meeting <span>Köln</span></h1>
+  <div class="header-badges">
+    <span class="badge">3 Días</span>
+    <span class="badge">3 Restaurantes</span>
+    <span class="badge">2 Actividades</span>
+  </div>
+</div>
+
+<!-- ═══════ MAP PANEL ═══════ -->
+<div class="panel active" id="panel-map">
+
+  <!-- Filter bar pinned below header -->
+  <div class="filter-bar" id="filterBar">
+    <button class="fchip active" data-filter="all" onclick="filterCat('all')">Todos</button>
+    <button class="fchip" data-filter="hotel" onclick="filterCat('hotel')">
+      <span class="dot" style="background:var(--c-hotel)"></span>Hotel
+    </button>
+    <button class="fchip" data-filter="cafe" onclick="filterCat('cafe')">
+      <span class="dot" style="background:var(--c-cafe)"></span>Café
+    </button>
+    <button class="fchip" data-filter="activity" onclick="filterCat('activity')">
+      <span class="dot" style="background:var(--c-activity)"></span>Aktivitäten
+    </button>
+    <button class="fchip" data-filter="restaurant" onclick="filterCat('restaurant')">
+      <span class="dot" style="background:var(--c-restaurant)"></span>Restaurantes
+    </button>
+  </div>
+
+  <!-- Leaflet map -->
+  <div id="map"></div>
+
+  <!-- Detail card (shown when item clicked) -->
+  <div id="detail-card">
+    <div style="position:relative;">
+      <div id="dc-map" class="dc-map"></div>
+      <button class="dc-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="dc-body">
+      <div class="dc-icon-wrap" id="dc-icon"></div>
+      <div class="dc-name" id="dc-name"></div>
+      <div class="dc-tags" id="dc-tags"></div>
+      <div id="dc-rows"></div>
+      <div class="dc-btns">
+        <a class="dc-btn-maps" id="dc-maps-btn" href="#" target="_blank">🗺️ Abrir en Maps</a>
+        <a class="dc-btn-call" id="dc-call-btn" href="#">📞 Llamar</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Location list -->
+  <div class="loc-list" id="locList"></div>
+</div>
+
+<!-- ═══════ AGENDA PANEL ═══════ -->
+<div class="panel" id="panel-agenda">
+  <div class="day-tabs">
+    <button class="day-tab active" onclick="setDay(0)"><span class="dn">14</span>So</button>
+    <button class="day-tab" onclick="setDay(1)"><span class="dn">15</span>Mo</button>
+    <button class="day-tab" onclick="setDay(2)"><span class="dn">16</span>Di</button>
+  </div>
+
+  <div class="agenda-day active" id="day0">
+    <div class="day-label">Tag 1 · <strong>Sonntag, 14. Juni 2026</strong> — Ankunft & Aktivität</div>
+    <div class="ac hotel" onclick="goToMap('nh-hotel')"><div class="ac-top"><div class="ac-emoji">📥</div><div class="ac-b"><div class="ac-time">14:00 Uhr</div><div class="ac-title">Ankunft & Check-in</div><div class="ac-loc">NH Hotel Köln Altstadt · Holzmarkt 47</div><div class="ac-desc">Check-in und Zimmerbezug. Erstes Zusammenkommen des Teams.</div></div></div></div>
+    <div class="ac cafe" onclick="goToMap('vapiano')"><div class="ac-top"><div class="ac-emoji">☕</div><div class="ac-b"><div class="ac-time">14:30 – 16:15 Uhr</div><div class="ac-title">Kleine Mittagsmahlzeit – Vapiano</div><div class="ac-loc">Im Zollhafen 2-4, 50678 Köln</div><div class="ac-pills"><span class="pill">Marketing</span><span class="pill">Shopfinder</span><span class="pill">Telefon</span></div></div></div></div>
+    <div class="ac activity" onclick="goToMap('rheinfahrt')"><div class="ac-top"><div class="ac-emoji">🚢</div><div class="ac-b"><div class="ac-time">16:45 – 18:30 Uhr</div><div class="ac-title">Panoramafahrt auf dem Rhein</div><div class="ac-loc">Anlegestelle Kölner Altstadt (nahe Dom)</div><div class="ac-desc">ca. 1,5 Std. Abfahrt 16:45 Uhr.</div></div></div></div>
+    <div class="ac restaurant" onclick="goToMap('tartufo')"><div class="ac-top"><div class="ac-emoji">🍽️</div><div class="ac-b"><div class="ac-time">20:30 Uhr</div><div class="ac-title">Abendessen – il Tartufo</div><div class="ac-loc">Mathiasstraße 18, 50676 Köln</div><div class="ac-desc">★ 4.8</div></div></div></div>
+  </div>
+
+  <div class="agenda-day" id="day1">
+    <div class="day-label">Tag 2 · <strong>Montag, 15. Juni 2026</strong> — Meeting & Teamabend</div>
+    <div class="ac hotel" onclick="goToMap('nh-hotel')"><div class="ac-top"><div class="ac-emoji">🥐</div><div class="ac-b"><div class="ac-time">08:00 – 08:30 Uhr</div><div class="ac-title">Frühstück</div><div class="ac-loc">NH Hotel – Restaurant</div></div></div></div>
+    <div class="ac meeting" onclick="goToMap('nh-hotel')"><div class="ac-top"><div class="ac-emoji">📋</div><div class="ac-b"><div class="ac-time">08:30 – 12:00 Uhr</div><div class="ac-title">Meeting – Eröffnung</div><div class="ac-loc">NH Hotel – Besprechungsraum</div><div class="ac-pills"><span class="pill">Marketing</span><span class="pill">App</span><span class="pill">Kollektion</span><span class="pill">OOC</span><span class="pill">Umsatz/Ventas</span><span class="pill">JMC</span><span class="pill">Silmo-Kollektion</span></div></div></div></div>
+    <div class="ac restaurant" onclick="goToMap('osteria')"><div class="ac-top"><div class="ac-emoji">🍕</div><div class="ac-b"><div class="ac-time">13:00 – 15:00 Uhr</div><div class="ac-title">Mittagessen – L'Osteria</div><div class="ac-loc">Im Zollhafen 2–4, Köln</div><div class="ac-desc">★ 4.3</div></div></div></div>
+    <div class="ac activity" onclick="goToMap('citytour')"><div class="ac-top"><div class="ac-emoji">🏛️</div><div class="ac-b"><div class="ac-time">16:00 – 17:30 Uhr</div><div class="ac-title">City Tour – Dom & Altstadt</div><div class="ac-loc">Köln Innenstadt</div></div></div></div>
+    <div class="ac restaurant" onclick="goToMap('haxenhaus')"><div class="ac-top"><div class="ac-emoji">🍺</div><div class="ac-b"><div class="ac-time">19:30 Uhr</div><div class="ac-title">Abendessen – Haxenhaus</div><div class="ac-loc">Frankenwerft 19, Köln</div><div class="ac-desc">★ 4.1</div></div></div></div>
+  </div>
+
+  <div class="agenda-day" id="day2">
+    <div class="day-label">Tag 3 · <strong>Dienstag, 16. Juni 2026</strong> — 1:1 & Abschluss</div>
+    <div class="ac hotel" onclick="goToMap('nh-hotel')"><div class="ac-top"><div class="ac-emoji">🥐</div><div class="ac-b"><div class="ac-time">08:00 – 09:00 Uhr</div><div class="ac-title">Frühstück</div><div class="ac-loc">NH Hotel – Restaurant</div></div></div></div>
+    <div class="ac meeting" onclick="goToMap('nh-hotel')"><div class="ac-top"><div class="ac-emoji">🤝</div><div class="ac-b"><div class="ac-time">09:00 – 12:00 Uhr</div><div class="ac-title">Einzelgespräche (1:1)</div><div class="ac-loc">NH Hotel – Besprechungsraum</div><div class="ac-desc">~45 Min. pro Person. ⚠️ Reihenfolge nach Abreisezeit.</div></div></div></div>
+    <div class="ac activity"><div class="ac-top"><div class="ac-emoji">🏁</div><div class="ac-b"><div class="ac-time">12:00 – 13:30 Uhr</div><div class="ac-title">Gemeinsamer Abschluss</div><div class="ac-loc">Flexibel (nach Wahl)</div></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════ INFO PANEL ═══════ -->
+<div class="panel" id="panel-info">
+  <div class="is-title">🏨 Hotel Base</div>
+  <div class="icard">
+    <div class="icard-title">NH Hotel Köln Altstadt</div>
+    <div class="icard-sub">📍 Holzmarkt 47, 50676 Köln · ★★★★</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+      <span style="font-size:12px;color:var(--text2);">★ 4.3</span>
+      <a href="tel:+4922127228800" style="color:var(--c-hotel);font-weight:700;font-size:12px;">+49 221 2722880</a>
+    </div>
+    <div class="co-row">
+      <div class="co-b"><strong>Check-in</strong>So 14 jun · 14:00 h</div>
+      <div class="co-b" style="text-align:right"><strong>Check-out</strong>Di 16 jun · ~12:00 h</div>
+    </div>
+  </div>
+
+  <div class="is-title">🍽️ Restaurantes reservados</div>
+  <div style="border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+    <div class="rrow"><div style="font-size:22px;">🇮🇹</div><div style="flex:1"><div class="rname">il Tartufo</div><div class="rwhen">Dom cena · 20:30 h</div></div><div class="rrating">★ 4.8</div></div>
+    <div class="rrow"><div style="font-size:22px;">🍕</div><div style="flex:1"><div class="rname">L'Osteria Zollhafen</div><div class="rwhen">Lun almuerzo · 13:00 h</div></div><div class="rrating">★ 4.3</div></div>
+    <div class="rrow"><div style="font-size:22px;">🍺</div><div style="flex:1"><div class="rname">Haxenhaus</div><div class="rwhen">Lun cena · 19:30 h</div></div><div class="rrating">★ 4.1</div></div>
+  </div>
+
+  <div class="is-title">📞 Teléfonos de contacto</div>
+  <div style="border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+    <div class="crow"><span class="cname">NH Hotel</span><a class="cphone" href="tel:+4922127228800">+49 221 2722880</a></div>
+    <div class="crow"><span class="cname">il Tartufo</span><a class="cphone" href="tel:+4922199557835">+49 221 99557835</a></div>
+    <div class="crow"><span class="cname">L'Osteria</span><a class="cphone" href="tel:+4922166964750">+49 221 66964750</a></div>
+    <div class="crow"><span class="cname">Haxenhaus</span><a class="cphone" href="tel:+4922127049900">+49 221 2704990</a></div>
+    <div class="crow"><span class="cname">Panoramafahrt</span><a class="cphone" href="tel:+49221121600">+49 221 121600</a></div>
+  </div>
+
+  <div class="is-title">🗓️ Themen Tag 2</div>
+  <div class="topics-box">
+    <div class="tw">
+      <span class="tc">Marketing</span><span class="tc">App</span><span class="tc">Kollektion</span>
+      <span class="tc">OOC</span><span class="tc">Umsatz / Ventas</span><span class="tc">JMC</span><span class="tc">Silmo-Kollektion</span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text2);">Tag 1 Café: Marketing · Shopfinder · Telefon</div>
+  </div>
+  <div style="height:16px"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-map" onclick="setPanel('map')"><span class="ni">🗺️</span>Mapa</button>
+  <button class="nav-btn" id="nav-agenda" onclick="setPanel('agenda')"><span class="ni">📅</span>Agenda</button>
+  <button class="nav-btn" id="nav-info" onclick="setPanel('info')"><span class="ni">ℹ️</span>Info</button>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────
+const PLACES = {
+  'nh-hotel': {
+    id:'nh-hotel', cat:'hotel', emoji:'🏨',
+    name:'NH Hotel Köln Altstadt',
+    lat:50.9307, lng:6.9585,
+    tags:[{t:'Hotel base',c:'hotel'}],
+    rows:[
+      {icon:'🕐', text:'14:00 h · Check-in (Dom–Mar)'},
+      {icon:'📍', text:'Holzmarkt 47, 50676 Köln'},
+      {icon:'⭐', text:'4.3 · 1.248 reseñas', cls:'dc-rating'},
+      {icon:'📞', text:'+49 221 2722880', tel:'+4922127228800'}
+    ],
+    map:'https://maps.google.com/?q=NH+Hotel+Köln+Altstadt+Holzmarkt+47',
+    tel:'tel:+4922127228800'
+  },
+  'vapiano': {
+    id:'vapiano', cat:'cafe', emoji:'☕',
+    name:'Vapiano Zollhafen',
+    lat:50.9245, lng:6.9720,
+    tags:[{t:'Dom',c:'day'},{t:'Café',c:'cafe'}],
+    rows:[
+      {icon:'🕐', text:'14:30 – 16:15 h · Dom 14 jun'},
+      {icon:'📍', text:'Im Zollhafen 2-4, 50678 Köln'},
+      {icon:'💬', text:'Marketing · Shopfinder · Telefon'}
+    ],
+    map:'https://maps.google.com/?q=Vapiano+Im+Zollhafen+Köln',
+    tel:null
+  },
+  'rheinfahrt': {
+    id:'rheinfahrt', cat:'activity', emoji:'🚢',
+    name:'Panoramafahrt · Cologne Tourist',
+    lat:50.9382, lng:6.9603,
+    tags:[{t:'Dom',c:'day'},{t:'Actividad',c:'activity'}],
+    rows:[
+      {icon:'🕐', text:'16:45 – 18:15 h · Dom 14 jun'},
+      {icon:'📍', text:'Anlegestelle Kölner Altstadt, nahe Dom'},
+      {icon:'📞', text:'+49 221 121600', tel:'tel:+49221121600'}
+    ],
+    map:'https://maps.google.com/?q=Köln+Dom+Rheinpromenade+Anlegestelle',
+    tel:'tel:+49221121600'
+  },
+  'tartufo': {
+    id:'tartufo', cat:'restaurant', emoji:'🍽️',
+    name:'Ristorante il Tartufo',
+    lat:50.9268, lng:6.9558,
+    tags:[{t:'Dom · Cena',c:'day'},{t:'Reservado',c:'reserved'}],
+    rows:[
+      {icon:'🕐', text:'Cena · Dom 14 jun · ~20:00 h'},
+      {icon:'📍', text:'Mathiasstraße 18, 50676 Köln'},
+      {icon:'⭐', text:'4.8 · 2.573 reseñas', cls:'dc-rating'},
+      {icon:'📞', text:'+49 221 99557835', tel:'tel:+4922199557835'}
+    ],
+    map:'https://maps.google.com/?q=Ristorante+il+Tartufo+Mathiasstraße+18+Köln',
+    tel:'tel:+4922199557835'
+  },
+  'osteria': {
+    id:'osteria', cat:'restaurant', emoji:'🍕',
+    name:"L'Osteria Köln Zollhafen",
+    lat:50.9250, lng:6.9715,
+    tags:[{t:'Lun',c:'day'},{t:'Almuerzo',c:'restaurant'}],
+    rows:[
+      {icon:'🕐', text:'13:00 – 15:00 h · Lun 15 jun'},
+      {icon:'📍', text:'Im Zollhafen 2–4, Köln'},
+      {icon:'⭐', text:'4.3 · 892 reseñas', cls:'dc-rating'},
+      {icon:'📞', text:'+49 221 66964750', tel:'tel:+4922166964750'}
+    ],
+    map:"https://maps.google.com/?q=L+Osteria+Im+Zollhafen+Köln",
+    tel:'tel:+4922166964750'
+  },
+  'citytour': {
+    id:'citytour', cat:'activity', emoji:'🏛️',
+    name:'City Tour · Dom & Altstadt',
+    lat:50.9413, lng:6.9571,
+    tags:[{t:'Lun',c:'day'},{t:'Actividad',c:'activity'}],
+    rows:[
+      {icon:'🕐', text:'16:00 – 17:30 h · Lun 15 jun'},
+      {icon:'📍', text:'Köln Innenstadt · Kölner Dom'},
+      {icon:'🚶', text:'Dom- und Altstadtführung, ca. 1,5 Std.'}
+    ],
+    map:'https://maps.google.com/?q=Kölner+Dom',
+    tel:null
+  },
+  'haxenhaus': {
+    id:'haxenhaus', cat:'restaurant', emoji:'🍺',
+    name:'Restaurant Haxenhaus',
+    lat:50.9340, lng:6.9620,
+    tags:[{t:'Lun · Cena',c:'day'},{t:'Reservado',c:'reserved'}],
+    rows:[
+      {icon:'🕐', text:'Cena · Lun 15 jun · 19:30 h'},
+      {icon:'📍', text:'Frankenwerft 19, Köln'},
+      {icon:'⭐', text:'4.1 · 1.104 reseñas', cls:'dc-rating'},
+      {icon:'📞', text:'+49 221 2704990', tel:'tel:+4922127049900'}
+    ],
+    map:'https://maps.google.com/?q=Haxenhaus+Frankenwerft+19+Köln',
+    tel:'tel:+4922127049900'
+  }
+};
+
+const CAT_COLORS = {hotel:'#4a7fc1',cafe:'#7a5c8a',activity:'#c0842a',restaurant:'#c0392b',meeting:'#2e7d5a'};
+
+// ── MAP INIT ──────────────────────────────────────────
+let map, detailMap, markers = {}, currentFilter = 'all', currentDetail = null;
+
+function makePinHtml(cat, emoji) {
+  const color = CAT_COLORS[cat] || '#555';
+  return `<div style="
+    width:38px;height:38px;border-radius:50%;
+    background:${color};
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;
+    box-shadow:0 2px 8px rgba(0,0,0,.35);
+    border:2px solid white;
+  ">${emoji}</div>`;
+}
+
+function initMap() {
+  map = L.map('map', {
+    center:[50.9320, 6.9610],
+    zoom:14,
+    zoomControl:false,
+    attributionControl:false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19
+  }).addTo(map);
+
+  Object.values(PLACES).forEach(p => {
+    const icon = L.divIcon({
+      html: makePinHtml(p.cat, p.emoji),
+      className:'',
+      iconSize:[38,38],
+      iconAnchor:[19,19]
+    });
+    const m = L.marker([p.lat, p.lng], {icon}).addTo(map);
+    m.on('click', () => openDetail(p.id));
+    markers[p.id] = m;
+  });
+}
+
+// ── FILTER ────────────────────────────────────────────
+function applyFilter(cat) {
+  // Update chips
+  document.querySelectorAll('.fchip').forEach(c =>
+    c.classList.toggle('active', c.dataset.filter === cat)
+  );
+  // Update list
+  document.querySelectorAll('.loc-item').forEach(item =>
+    item.style.display = (cat === 'all' || item.dataset.cat === cat) ? 'flex' : 'none'
+  );
+  // Update markers + zoom
+  const visible = Object.values(PLACES).filter(p => cat === 'all' || p.cat === cat);
+  Object.entries(markers).forEach(([id, m]) => {
+    const show = cat === 'all' || PLACES[id].cat === cat;
+    if (show) { if (!map.hasLayer(m)) map.addLayer(m); }
+    else       { if (map.hasLayer(m)) map.removeLayer(m); }
+  });
+  if (visible.length > 0) {
+    const bounds = L.latLngBounds(visible.map(p => [p.lat, p.lng]));
+    map.flyToBounds(bounds.pad(0.3), {duration:0.6, maxZoom:16});
+  }
+}
+
+function filterCat(cat) {
+  currentFilter = cat;
+  // Close detail without re-triggering filter
+  _closeDetailSilent();
+  applyFilter(cat);
+}
+
+// ── DETAIL CARD ───────────────────────────────────────
+function openDetail(id) {
+  const p = PLACES[id];
+  if (!p) return;
+  currentDetail = id;
+
+  // populate card
+  const iconEl = document.getElementById('dc-icon');
+  iconEl.textContent = p.emoji;
+  iconEl.style.background = CAT_COLORS[p.cat];
+
+  document.getElementById('dc-name').textContent = p.name;
+
+  const tagsEl = document.getElementById('dc-tags');
+  tagsEl.innerHTML = p.tags.map(tg => `<span class="ltag ${tg.c}">${tg.t}</span>`).join('');
+
+  const rowsEl = document.getElementById('dc-rows');
+  rowsEl.innerHTML = p.rows.map(r => {
+    const textHtml = r.tel
+      ? `<a href="${r.tel}" style="color:var(--c-hotel);font-weight:600;text-decoration:none;">${r.text}</a>`
+      : `<span class="${r.cls||''}">${r.text}</span>`;
+    return `<div class="dc-row"><span class="dc-row-icon">${r.icon}</span><div class="dc-row-text">${textHtml}</div></div>`;
+  }).join('');
+
+  document.getElementById('dc-maps-btn').href = p.map;
+  const callBtn = document.getElementById('dc-call-btn');
+  if (p.tel) {
+    callBtn.href = p.tel;
+    callBtn.style.display = 'flex';
+  } else {
+    callBtn.style.display = 'none';
+  }
+
+  // show card
+  const card = document.getElementById('detail-card');
+  card.style.display = 'block';
+
+  // init mini-map inside card
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+  setTimeout(() => {
+    detailMap = L.map('dc-map', {
+      center:[p.lat, p.lng], zoom:16,
+      zoomControl:false, attributionControl:false,
+      dragging:false, scrollWheelZoom:false,
+      doubleClickZoom:false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(detailMap);
+    const icon = L.divIcon({
+      html: makePinHtml(p.cat, p.emoji),
+      className:'', iconSize:[38,38], iconAnchor:[19,19]
+    });
+    L.marker([p.lat, p.lng], {icon}).addTo(detailMap);
+  }, 50);
+
+  // zoom main map to pin
+  map.flyTo([p.lat, p.lng], 16, {duration:0.7});
+
+  // hide location list while detail is open
+  document.getElementById('locList').style.display = 'none';
+
+  // scroll panel-map to show detail
+  const panel = document.getElementById('panel-map');
+  panel.scrollTo({top: document.getElementById('map').offsetHeight + document.getElementById('filterBar').offsetHeight, behavior:'smooth'});
+}
+
+function _closeDetailSilent() {
+  document.getElementById('detail-card').style.display = 'none';
+  document.getElementById('locList').style.display = 'block';
+  if (detailMap) { detailMap.remove(); detailMap = null; }
+  currentDetail = null;
+}
+
+function closeDetail() {
+  _closeDetailSilent();
+  applyFilter(currentFilter);
+}
+
+// ── RENDER LOC LIST ───────────────────────────────────
+function renderLocList() {
+  const list = document.getElementById('locList');
+  const order = ['nh-hotel','vapiano','rheinfahrt','tartufo','osteria','citytour','haxenhaus'];
+  list.innerHTML = order.map(id => {
+    const p = PLACES[id];
+    const tagsHtml = p.tags.map(tg => `<span class="ltag ${tg.c}">${tg.t}</span>`).join('');
+    const timeRow = p.rows.find(r => r.icon === '🕐');
+    return `
+      <div class="loc-item" data-cat="${p.cat}" onclick="openDetail('${p.id}')">
+        <div class="loc-icon ${p.cat}">${p.emoji}</div>
+        <div class="loc-info">
+          <div class="loc-name">${p.name}</div>
+          <div class="loc-time">${timeRow ? timeRow.text : ''}</div>
+          <div class="loc-tags">${tagsHtml}</div>
+        </div>
+        <span class="loc-arrow">›</span>
+      </div>`;
+  }).join('');
+}
+
+// ── AGENDA → MAP ──────────────────────────────────────
+function goToMap(id) {
+  setPanel('map');
+  setTimeout(() => openDetail(id), 350);
+}
+
+// ── PANEL / DAY ───────────────────────────────────────
+function setPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'map') setTimeout(() => map && map.invalidateSize(), 100);
+}
+
+function setDay(day) {
+  document.querySelectorAll('.day-tab').forEach((t,i) => t.classList.toggle('active', i===day));
+  document.querySelectorAll('.agenda-day').forEach((d,i) => d.classList.toggle('active', i===day));
+}
+
+// ── INIT ──────────────────────────────────────────────
+window.addEventListener('load', () => {
+  renderLocList();
+  initMap();
+});
+</script>
+</body>
+</html>
